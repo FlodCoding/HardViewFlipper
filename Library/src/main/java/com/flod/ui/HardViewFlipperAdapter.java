@@ -12,10 +12,18 @@ import java.util.List;
  * UseDes:
  */
 public abstract class HardViewFlipperAdapter<Data> {
+    public HardViewFlipperAdapter() {
+    }
+
+    public HardViewFlipperAdapter(List<Data> dataList) {
+        mDataList = dataList;
+    }
 
     private List<Data> mDataList;
 
-    protected  int getItemLayoutId(int position){return 0;}
+    protected int getItemLayoutId(int position) {
+        return 0;
+    }
 
     protected abstract void onBind(View view, Data data);
 

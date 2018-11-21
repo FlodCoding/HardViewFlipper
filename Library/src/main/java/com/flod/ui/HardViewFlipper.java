@@ -11,7 +11,7 @@ import android.widget.ViewFlipper;
 import com.flod.library.R;
 
 /**
- * SimpleDes:
+ * SimpleDes:带有自动轮播效果的ViewFlipper
  * Creator: Flood
  * Date: 2018-11-20
  * UseDes:
