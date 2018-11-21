@@ -1,4 +1,4 @@
-package com.flod.library;
+package com.flod.ui;
 
 import android.support.annotation.NonNull;
 import android.view.View;

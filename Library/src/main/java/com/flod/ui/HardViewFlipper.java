@@ -1,4 +1,4 @@
-package com.flod.library;
+package com.flod.ui;
 
 import android.content.Context;
 import android.content.res.TypedArray;
@@ -8,6 +8,8 @@ import android.view.LayoutInflater;
 import android.view.View;
 import android.widget.ViewFlipper;
 
+import com.flod.library.R;
+
 /**
  * SimpleDes:
  * Creator: Flood
@@ -16,7 +18,7 @@ import android.widget.ViewFlipper;
  */
 public class HardViewFlipper extends ViewFlipper {
     private HardViewFlipperAdapter mAdapter;
-    private int itemLayoutId;
+    private int mLayoutId;
 
     public HardViewFlipper(Context context) {
         super(context);
@@ -27,13 +29,20 @@ public class HardViewFlipper extends ViewFlipper {
         super(context, attrs);
         TypedArray typedArray = context.obtainStyledAttributes(attrs, R.styleable.HardViewFlipper);
         if (typedArray != null) {
-            itemLayoutId = typedArray.getResourceId(R.styleable.HardViewFlipper_itemLayout, 0);
+            mLayoutId = typedArray.getResourceId(R.styleable.HardViewFlipper_layout, 0);
+            if (mLayoutId != 0) {
+                //供preview预览
+                View view = LayoutInflater.from(getContext()).inflate(mLayoutId, this, false);
+                addView(view);
+                postInvalidate();
+            }
             typedArray.recycle();
         }
     }
 
     /**
      * 设置一个适配器
+     *
      * @param adapter HardViewFlipperAdapter
      * @return HardViewFlipper
      */
@@ -59,9 +68,9 @@ public class HardViewFlipper extends ViewFlipper {
         int itemCount = mAdapter.getItemCount();
         for (int i = 0; i < itemCount; i++) {
             int formAdapterItemLayout = mAdapter.getItemLayoutId(i);
-            if (formAdapterItemLayout != 0) itemLayoutId = formAdapterItemLayout;
-            if (itemLayoutId != 0) {
-                View view = LayoutInflater.from(getContext()).inflate(itemLayoutId, this, false);
+            if (formAdapterItemLayout != 0) mLayoutId = formAdapterItemLayout;
+            if (mLayoutId != 0) {
+                View view = LayoutInflater.from(getContext()).inflate(mLayoutId, this, false);
                 mAdapter.bind(view, i);
                 addView(view);
             }
@@ -74,7 +83,7 @@ public class HardViewFlipper extends ViewFlipper {
      * @param layoutId 布局Id
      */
     public void setItemLayoutId(@LayoutRes int layoutId) {
-        itemLayoutId = layoutId;
+        mLayoutId = layoutId;
     }
 
 }
