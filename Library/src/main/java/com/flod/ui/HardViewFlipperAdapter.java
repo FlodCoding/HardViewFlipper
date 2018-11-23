@@ -25,10 +25,10 @@ public abstract class HardViewFlipperAdapter<Data> {
         return 0;
     }
 
-    protected abstract void onBind(View view, Data data);
+    protected abstract void onBind(View view, int position, Data data);
 
     void bind(View view, int position) {
-        onBind(view, mDataList.get(position));
+        onBind(view, position, mDataList.get(position));
     }
 
     public void setDataList(@NonNull List<Data> list) {
