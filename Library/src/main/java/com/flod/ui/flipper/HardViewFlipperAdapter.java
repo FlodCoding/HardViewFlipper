@@ -1,4 +1,4 @@
-package com.flod.ui;
+package com.flod.ui.flipper;
 
 import android.support.annotation.NonNull;
 import android.view.View;

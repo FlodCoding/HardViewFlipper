@@ -1,4 +1,4 @@
-package com.flod.ui;
+package com.flod.ui.flipper;
 
 import android.content.Context;
 import android.content.res.TypedArray;
@@ -86,4 +86,12 @@ public class HardViewFlipper extends ViewFlipper {
         mLayoutId = layoutId;
     }
 
+    /**
+     * 保证至少两个的视图才开始轮播
+     */
+    @Override
+    public void startFlipping() {
+        if (getChildCount() > 1)
+            super.startFlipping();
+    }
 }
