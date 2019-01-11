@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <declare-styleable name="HardEditText">
+        <attr name="clearDrawable" format="reference"/>
+        <attr name="visibleDrawable" format="reference"/>
+        <attr name="invisibleDrawable" format="reference"/>
+    </declare-styleable>
+
+    <dimen name="HardEditText_icon_size">24dp</dimen>
+    <dimen name="HardEditText_icon_padding">10dp</dimen>
+
+</resources>
