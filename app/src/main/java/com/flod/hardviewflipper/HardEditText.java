@@ -360,7 +360,7 @@ public class HardEditText extends AppCompatEditText {
     public boolean onTouchEvent(MotionEvent event) {
         if (event.getAction() == MotionEvent.ACTION_UP) {
             if (enableClearBtn || enablePwVisibleBtn) {
-                int visibleBtnRight = getWidth() - mBtnPadding - mEditPaddingRight;
+                int visibleBtnRight = getWidth() + mBtnTranslationX - mBtnPadding - mEditPaddingRight;
                 int clearBtnRight = visibleBtnRight;
                 if (enablePwVisibleBtn)
                     clearBtnRight -= mBtnSize + mBtnPadding;
