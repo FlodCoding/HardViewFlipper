@@ -42,6 +42,7 @@ import android.view.MotionEvent;
  * 13、setErr 图标的处理
  * 14、setDrawable 自定义图标
  * 15、Label 文字换行
+ * 16、background选中动画
  */
 public class HardEditText extends AppCompatEditText {
 
@@ -196,8 +197,8 @@ public class HardEditText extends AppCompatEditText {
 
     @Override
     protected void onDraw(Canvas canvas) {
-
-        //需要注意editView 会不断地draw,每次draw后原先的draw的btn都会消失
+        //由于光标的闪烁和文字的输入，会不断地draw,会清空之前的图标
+        //TODO maybe可以保存一下，减少重draw，提高性能
         drawBackground(canvas);
         drawBtnAndLabel(canvas);
 
