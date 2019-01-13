@@ -6,13 +6,18 @@ import android.content.Context;
 import android.content.res.TypedArray;
 import android.graphics.Bitmap;
 import android.graphics.Canvas;
+import android.graphics.Color;
 import android.graphics.Paint;
 import android.graphics.Rect;
 import android.graphics.drawable.Drawable;
 import android.support.v4.content.ContextCompat;
 import android.support.v7.widget.AppCompatEditText;
 import android.text.InputType;
+import android.text.TextPaint;
+import android.text.method.PasswordTransformationMethod;
 import android.util.AttributeSet;
+import android.util.Log;
+import android.view.Gravity;
 import android.view.MotionEvent;
 
 /**
@@ -20,53 +25,93 @@ import android.view.MotionEvent;
  * Creator: Flood
  * Date: 2019-01-09
  * UseDes:
- * TODO setErr 图标的处理
+ *
+ * TODO
+ * 1、一键清除功能  ✔
+ * 2、密码可见与隐藏功能 ✔
+ * 3、getEditPaddingRight() 计算的问题 ✔
+ * 4、mBtnSize 的计算问题 ✔
+ * 5、加上label后还需要再计算按钮垂直方向上的触摸判断 ✔
+ * 6、scrollY的绘制问题✔
+ * 7、Label 功能 ✔
+ * 8、Label Color和Gravity  Gravity 暂时随EditText一样 ✔
+ * 9、新写一个设置background的方法，为了将label放到外面来 ✔
+ * 10、将background的states转移到自己定义background上   ✔
+ * 11、高度或者宽度写太小会gg
+ * 12、在写xml时能看到btn和label
+ * 13、setErr 图标的处理
+ * 14、setDrawable 自定义图标
+ * 15、Label 文字换行
  */
 public class HardEditText extends AppCompatEditText {
 
-
+    private boolean DEBUG = true;
     private static final int DEFAULT_CLEAR_ICON = R.drawable.ic_clear_black_24dp;
     private static final int DEFAULT_VISIBLE_ICON = R.drawable.ic_visibility_black_24dp;
     private static final int DEFAULT_INVISIBLE_ICON = R.drawable.ic_visibility_off_black_24dp;
 
-    private final int DEFAULT_BTN_SIZE = getResources().getDimensionPixelSize(R.dimen.HardEditText_icon_size);
-    private final int DEFAULT_BTN_PADDING = getResources().getDimensionPixelSize(R.dimen.HardEditText_icon_padding);
+    private final int DEFAULT_BTN_SIZE = getResources().getDimensionPixelSize(R.dimen.HardEditText_default_btnSize);
+    private final int DEFAULT_BTN_PADDING = getResources().getDimensionPixelSize(R.dimen.HardEditText_default_btnPadding);
 
-    private int mClearBtnResId;
-    private int mVisibleBtnResId;
-    private int mInvisibleBtnResId;
+    private final int DEFAULT_LABEL_TEXT_SIZE = getResources().getDimensionPixelSize(R.dimen.HardEditText_default_labelTextSize);
+    private final int DEFAULT_LABEL_PADDING_TOP = getResources().getDimensionPixelSize(R.dimen.HardEditText_default_labelPaddingTop);
+    private final int DEFAULT_LABEL_PADDING_BOTTOM = getResources().getDimensionPixelSize(R.dimen.HardEditText_default_labelPaddingBottom);
+
+
+    private boolean enableClearBtn;          //开启清除文本按钮功能
+    private boolean enablePwVisibleBtn;      //开启密码显示和隐藏功能
+    private boolean enableHideWithClearBtn;  //是否和ClearBtn一起消失
+    private boolean enableLabel;             //开启Label的功能
 
     private Bitmap mClearBtnBitmap;
     private Bitmap mVisibleBtnBitmap;
     private Bitmap mInvisibleBtnBitmap;
+    private Drawable mBackground;
 
-    private int mBtnSize = DEFAULT_BTN_SIZE; //图标的宽度和高度
-    private int mBtnPadding = DEFAULT_BTN_PADDING;
+    private int mBtnSize;           //按钮的高度和宽度（限定为方形）
+    private int mBtnPadding;
+    private int mBtnTranslationX;   //Btn的水平偏移量
 
-    private Paint mPaint;
-    private int mPaddingRight;//右边的内边距  //TODO
+    private String mLabelText;      //label的文字内容
+    private int mLabelTextSize;     //label的文字大小
+    private int mLabelTextColor;    //label的文字颜色
+    private int mLabelGravity;      //label的Gravity: left | center |right
+    private int mLabelPaddingTop;   //label PaddingTop
+    private int mLabelPaddingBottom;//label PaddingBottom（与文字）
+    private int mLabelTranslationX; //label的水平偏移量
 
 
-    private boolean enableClearBtn = true;
-    private boolean enableSeePassword = true;  //密码是否是
+    private int mEditPaddingLeft;   //外部的padding
+    private int mEditPaddingRight;  //外部的padding
+    private int mEditPaddingTop;    //外部的padding
+    private int mEditPaddingBottom; //外部的padding
 
-    private boolean drawClearBtn;
-    private boolean drawSeePwBtn;  //密码是否是
 
-    private boolean isClearBtnVisible;
-    private boolean isPwVisible;
+    private Paint mPaint = new Paint(Paint.ANTI_ALIAS_FLAG | Paint.FILTER_BITMAP_FLAG);
+    private TextPaint mTextPaint = new TextPaint(Paint.ANTI_ALIAS_FLAG);
 
-    private boolean visibleBtnAnimRunning = false;
-    private boolean clearBtnAnimRunning = false;
 
-    private ValueAnimator mHideAnimator;        //清除按钮消失动画
-    private ValueAnimator mShowAnimator;  //清除按钮出现动画
-    private static final int CLEAR_ICON_ANIMATOR_TIME = 200;
+    private boolean isClearBtnVisible = true;  //TODO 为了先让编译器看到
+    private boolean isPasswordInputType = true;
+    private boolean isLabelVisible = true;
 
-    private boolean isVisible = true;
+    private Rect mClearBtnRect = new Rect();
+    private Rect mPwVisibleBtnRect = new Rect();
+    private Rect mTextRect = new Rect();
+
+    private ValueAnimator mBtnAnimator;     //按钮动画
+    private ValueAnimator mLabelAnimator;   //Label动画
+    private float mBtnFraction;
+    private float mLabelFraction;
+
+
+    private static final int VALUE_ANIMATOR_TIME = 200;  //全局动画时间
+
+
 
     public HardEditText(Context context) {
         super(context);
+        init(context, null);
     }
 
     public HardEditText(Context context, AttributeSet attrs) {
@@ -82,135 +127,179 @@ public class HardEditText extends AppCompatEditText {
 
 
     private void init(Context context, AttributeSet attrs) {
-        //抗锯齿，很牛逼
-        mPaint = new Paint(Paint.ANTI_ALIAS_FLAG | Paint.FILTER_BITMAP_FLAG);
-        if (attrs != null) {
-            TypedArray array = context.obtainStyledAttributes(attrs, R.styleable.HardEditText);
-            mClearBtnResId = array.getResourceId(R.styleable.HardEditText_clearDrawable, DEFAULT_CLEAR_ICON);
-            mVisibleBtnResId = array.getResourceId(R.styleable.HardEditText_visibleDrawable, DEFAULT_VISIBLE_ICON);
-            mInvisibleBtnResId = array.getResourceId(R.styleable.HardEditText_invisibleDrawable, DEFAULT_INVISIBLE_ICON);
-            array.recycle();
+
+        TypedArray array = context.obtainStyledAttributes(attrs, R.styleable.HardEditText);
+        enableClearBtn = array.getBoolean(R.styleable.HardEditText_enableClearBtn, true);
+        enablePwVisibleBtn = array.getBoolean(R.styleable.HardEditText_enableClearBtn, true);
+        enableHideWithClearBtn = array.getBoolean(R.styleable.HardEditText_enableHideWithClearBtn, true);
+        mBtnSize = array.getDimensionPixelSize(R.styleable.HardEditText_btnSize, DEFAULT_BTN_SIZE);
+        mBtnPadding = array.getDimensionPixelSize(R.styleable.HardEditText_btnPadding, DEFAULT_BTN_PADDING);
+        mBtnTranslationX = array.getDimensionPixelSize(R.styleable.HardEditText_btnTranslationX, 0);
+
+
+        int clearBtnResId = array.getResourceId(R.styleable.HardEditText_clearBtnSrc, DEFAULT_CLEAR_ICON);
+        int visibleBtnResId = array.getResourceId(R.styleable.HardEditText_visibleBtnSrc, DEFAULT_VISIBLE_ICON);
+        int invisibleBtnResId = array.getResourceId(R.styleable.HardEditText_invisibleSrc, DEFAULT_INVISIBLE_ICON);
+        int backgroundResId = array.getResourceId(R.styleable.HardEditText_background, -1);
+
+        //if null. it will be hintText;
+        enableLabel = array.getBoolean(R.styleable.HardEditText_enableLabel, true);
+        mLabelText = array.getString(R.styleable.HardEditText_labelText);
+        if (mLabelText == null) {
+            mLabelText = getHint().toString();
         }
+        mLabelTextSize = array.getDimensionPixelSize(R.styleable.HardEditText_labelTextSize, DEFAULT_LABEL_TEXT_SIZE);
+        mLabelTextColor = array.getColor(R.styleable.HardEditText_labelTextColor, Color.parseColor("#757575"));
+        mLabelPaddingTop = array.getDimensionPixelSize(R.styleable.HardEditText_labelPaddingTop, DEFAULT_LABEL_PADDING_TOP);
+        mLabelPaddingBottom = array.getDimensionPixelSize(R.styleable.HardEditText_labelPaddingBottom, DEFAULT_LABEL_PADDING_BOTTOM);
+        mLabelTranslationX = array.getDimensionPixelSize(R.styleable.HardEditText_labelTranslationX, 0);
+
+        array.recycle();
+
 
         //拿到三个Icon的bitmap
-        mClearBtnBitmap = getBitmap(context, mClearBtnResId);
-        mVisibleBtnBitmap = getBitmap(context, mVisibleBtnResId);
-        mInvisibleBtnBitmap = getBitmap(context, mInvisibleBtnResId);
+        mClearBtnBitmap = getBitmap(context, clearBtnResId);
+        mVisibleBtnBitmap = getBitmap(context, visibleBtnResId);
+        mInvisibleBtnBitmap = getBitmap(context, invisibleBtnResId);
+        if (backgroundResId > 0) mBackground = ContextCompat.getDrawable(context, backgroundResId);
 
+        isPasswordInputType = isPasswordInputType(getInputType());
 
-        //按钮出现和消失的动画
-        mHideAnimator = ValueAnimator.ofFloat(1f, 0f).setDuration(CLEAR_ICON_ANIMATOR_TIME);
-        mShowAnimator = ValueAnimator.ofFloat(0f, 1f).setDuration(CLEAR_ICON_ANIMATOR_TIME);
+        mBtnAnimator = ValueAnimator.ofFloat(0f, 1f).setDuration(VALUE_ANIMATOR_TIME);
+        mBtnAnimator.addUpdateListener(new ValueAnimator.AnimatorUpdateListener() {
+            @Override
+            public void onAnimationUpdate(ValueAnimator animation) {
+                //Fraction value is [0.0,1.0]
+                mBtnFraction = animation.getAnimatedFraction();
+            }
+        });
 
-        //enableSeePassword = getInputType() != (InputType.TYPE_TEXT_VARIATION_PASSWORD | InputType.TYPE_CLASS_TEXT);
+        mLabelAnimator = ValueAnimator.ofFloat(0f, 1f).setDuration(VALUE_ANIMATOR_TIME);
+        mLabelAnimator.addUpdateListener(new ValueAnimator.AnimatorUpdateListener() {
+            @Override
+            public void onAnimationUpdate(ValueAnimator animation) {
+                mLabelFraction = animation.getAnimatedFraction();
+            }
+        });
 
-
+        mTextPaint.setColor(mLabelTextColor);
+        mTextPaint.setTextSize(mLabelTextSize);
+        mLabelGravity = getGravity();
     }
 
+
     @Override
-    protected void onMeasure(int widthMeasureSpec, int heightMeasureSpec) {
-        super.onMeasure(widthMeasureSpec, heightMeasureSpec);
-        //设置右边距（为右边图标提供位置）
-        setPadding(getPaddingLeft(), getPaddingTop(), mPaddingRight, getPaddingBottom());
+    protected void onFinishInflate() {
+        super.onFinishInflate();
+        setPadding(getPaddingLeft(), getPaddingTop(), getPaddingRight(), getPaddingBottom());
     }
 
     @Override
     protected void onDraw(Canvas canvas) {
+
+        //需要注意editView 会不断地draw,每次draw后原先的draw的btn都会消失
+        drawBackground(canvas);
+        drawBtnAndLabel(canvas);
+
+        //draw original shit
         super.onDraw(canvas);
-        //需要注意editView 会不断地draw,每次draw后原先的draw的icon都会消失
-        mBtnSize = getHeight() - 2 * mBtnPadding;
-        drawBtn(canvas);
+    }
 
-
+    private void drawBackground(Canvas canvas) {
+        if (mBackground != null) {
+            mTextRect.left = getScrollX();
+            mTextRect.top = getLabelSpace() + getScrollY();
+            mTextRect.right = getWidth() + getScrollX();
+            mTextRect.bottom = getHeight() + getScrollY();
+            mBackground.setBounds(mTextRect);
+            mBackground.draw(canvas);
+        }
     }
 
 
-    private void drawBtn(Canvas canvas) {
-        float showValue = (float) mShowAnimator.getAnimatedValue();
-        float hideValue = (float) mHideAnimator.getAnimatedValue();
-
-        //clearBtn相关的动画
-        if (enableClearBtn) {
-            if (clearBtnAnimRunning) {
-                if (isClearBtnVisible) {
-                    //出现动画
-                    if (mShowAnimator.isStarted()) {
-                        drawClearBtn(showValue, canvas);
-                        invalidate();  //keep draw
-                    } else {
-                        drawClearBtn(1, canvas);
-                        clearBtnAnimRunning = false;
-                    }
-                } else {
-                    //消失动画
-                    if (mHideAnimator.isStarted()) {
-                        drawClearBtn(hideValue, canvas);
-                        invalidate();  //keep draw
-                    } else {
-                        drawClearBtn(0, canvas);
-                        clearBtnAnimRunning = false;
-                    }
-                }
-            } else {
-                if (isClearBtnVisible) drawClearBtn(1, canvas);
-            }
-
+    private void drawBtnAndLabel(Canvas canvas) {
+        //drawClearBtn and drawVisibleBtn
+        boolean invalidate = false;
+        if (mBtnAnimator.isRunning()) {
+            //动画部分
+            drawClearBtn(mBtnFraction, canvas);
+            if (enableHideWithClearBtn)
+                drawVisibleBtn(mBtnFraction, canvas);
+            else drawVisibleBtn(1, canvas);
+            invalidate = true;
+        } else {
+            //静态部分
+            drawClearBtn(isClearBtnVisible ? 1 : 0, canvas);
+            if (enableHideWithClearBtn)
+                drawVisibleBtn(isClearBtnVisible ? 1 : 0, canvas);
+            else drawVisibleBtn(1, canvas);
         }
 
-
-        //VisibleBtn相关的动画
-        //状态转换：可见消失->不可见出现 或者 不可见消失->可见出现
-        if (enableSeePassword) {
-            if (visibleBtnAnimRunning) {
-                if (mHideAnimator.isStarted()) {
-                    drawVisibleBtn(hideValue, canvas, isPwVisible);
-                    invalidate();
-                } else {
-                    drawVisibleBtn(0, canvas, isPwVisible);
-                    mShowAnimator.start(); //消失动画结束隐藏动画开始
-                    isPwVisible = !isPwVisible; //置换状态
-                    invalidate();
-                    return;
-                }
-
-                if (!mHideAnimator.isStarted()) {
-                    if (mShowAnimator.isStarted()) {
-                        drawVisibleBtn(showValue, canvas, isPwVisible);
-                        invalidate();
-                    } else {
-                        drawVisibleBtn(1, canvas, isPwVisible);
-                        visibleBtnAnimRunning = false;
-                    }
-                }
-
-            } else {
-                drawVisibleBtn(1, canvas, isPwVisible);
-            }
+        //drawLabel
+        if (mLabelAnimator.isRunning()) {
+            drawLabel(mLabelFraction, canvas);
+            invalidate = true;
+        } else {
+            drawLabel(isLabelVisible ? 1 : 0, canvas);
         }
 
+        if (invalidate) invalidate();  //keep draw
 
     }
 
     private void drawClearBtn(float animValue, Canvas canvas) {
-        //TODO 简化
-        int right = (int) (getWidth() - mBtnSize - 2 * mBtnPadding - (mBtnSize - mBtnSize * animValue) / 2);
-        int left = (int) (right - mBtnSize * animValue);
-        int top = (int) ((getHeight() - mBtnSize * animValue) / 2);
-        int bottom = (int) (top + mBtnSize * animValue);
-        Rect rect = new Rect(left, top, right, bottom);
-        //src是对原图片裁剪，第二个是裁剪后的位置
-        canvas.drawBitmap(mClearBtnBitmap, null, rect, mPaint);
+        if (enableClearBtn && animValue != 0) {
+            //当singleLine 超出部分是会向左滑动，ScrollX增加，按钮要向右移动来抵消偏移
+            mClearBtnRect.right = (int) (getWidth() + getScrollX() + mBtnTranslationX - mBtnPadding - mEditPaddingRight
+                    - (mBtnSize - mBtnSize * animValue) / 2);
+            if (enablePwVisibleBtn) //如果右侧有PwVisibleBtn就再向左偏移一个按钮的距离
+                mClearBtnRect.right -= mBtnSize + mBtnPadding;
+            mClearBtnRect.left = (int) (mClearBtnRect.right - mBtnSize * animValue);
+            mClearBtnRect.top = (int) ((getHeight() + getLabelSpace() - mBtnSize * animValue) / 2 + getScrollY());
+            mClearBtnRect.bottom = (int) (mClearBtnRect.top + mBtnSize * animValue);
+            //Rect rect = new Rect(left, top, right, bottom);
+            //src是对原图片裁剪，第二个是裁剪后的位置
+            canvas.drawBitmap(mClearBtnBitmap, null, mClearBtnRect, mPaint);
+        }
+
     }
 
-    private void drawVisibleBtn(float animValue, Canvas canvas, boolean isVisible) {
-        int right = (int) (getWidth() - mBtnPadding - (mBtnSize - mBtnSize * animValue) / 2);
-        int left = (int) (right - mBtnSize * animValue);
-        int top = (int) ((getHeight() - mBtnSize * animValue) / 2);
-        int bottom = (int) (top + mBtnSize * animValue);
-        Rect rect = new Rect(left, top, right, bottom);
+    private void drawVisibleBtn(float animValue, Canvas canvas) {
+        if (enablePwVisibleBtn && animValue != 0) {
+            mPwVisibleBtnRect.right = (int) (getWidth() + getScrollX() + mBtnTranslationX - mBtnPadding - mEditPaddingRight
+                    - (mBtnSize - mBtnSize * animValue) / 2);
+            mPwVisibleBtnRect.left = (int) (mPwVisibleBtnRect.right - mBtnSize * animValue);
+            mPwVisibleBtnRect.top = (int) ((getHeight() + getLabelSpace() - mBtnSize * animValue) / 2 + getScrollY());
+            mPwVisibleBtnRect.bottom = (int) (mPwVisibleBtnRect.top + mBtnSize * animValue);
+            if (isPasswordInputType)
+                canvas.drawBitmap(mInvisibleBtnBitmap, null, mPwVisibleBtnRect, mPaint);
+            else canvas.drawBitmap(mVisibleBtnBitmap, null, mPwVisibleBtnRect, mPaint);
+        }
 
-        if (isVisible) canvas.drawBitmap(mVisibleBtnBitmap, null, rect, mPaint);
-        else canvas.drawBitmap(mInvisibleBtnBitmap, null, rect, mPaint);
+    }
+
+    private void drawLabel(float animValue, Canvas canvas) {
+        if (enableLabel && animValue != 0) {
+            int startX = mLabelTranslationX + getScrollX();
+            //drawText 是从baseLine开始，需要向下移动 baseLine-top
+            int startY = (int) (mLabelPaddingTop - mTextPaint.getFontMetrics().top + (1 - animValue) * mLabelTextSize) + getScrollY();
+            if ((mLabelGravity & Gravity.START) == Gravity.START) {
+                //left
+                startX += mEditPaddingLeft;
+            } else if ((mLabelGravity & Gravity.END) == Gravity.END) {
+                //right
+                startX += (int) (getWidth() - mEditPaddingRight - mTextPaint.measureText(mLabelText));
+            } else {
+                //center
+                startX += (int) (getWidth() - mTextPaint.measureText(mLabelText)) / 2;
+            }
+
+            int alpha = (int) (255 * animValue);
+            mTextPaint.setAlpha(alpha);
+
+            canvas.drawText(mLabelText, startX, startY, mTextPaint);
+        }
+
     }
 
 
@@ -224,8 +313,17 @@ public class HardEditText extends AppCompatEditText {
             return bitmap;
         }
         return null;
+
     }
 
+    //将原本drawableState转移到自己定义的background
+    @Override
+    protected void drawableStateChanged() {
+        if (mBackground != null && mBackground.isStateful()) {
+            mBackground.setState(getDrawableState());
+        }
+        super.drawableStateChanged();
+    }
 
     @Override
     protected void onFocusChanged(boolean focused, int direction, Rect previouslyFocusedRect) {
@@ -240,74 +338,128 @@ public class HardEditText extends AppCompatEditText {
 
     }
 
+
     @Override
-    protected void onTextChanged(CharSequence text, int start, int lengthBefore, int lengthAfter) {
+    public void onTextChanged(CharSequence text, int start, int lengthBefore, int lengthAfter) {
         super.onTextChanged(text, start, lengthBefore, lengthAfter);
         if (enableClearBtn) {
             if (text.length() > 0) {
                 if (!isClearBtnVisible) setClearBtnVisible(true);
+                if (!isLabelVisible) setLabelVisible(true);
             } else {
                 if (isClearBtnVisible) setClearBtnVisible(false);
+                if (isLabelVisible) setLabelVisible(false);
             }
 
         }
     }
-
 
     @SuppressLint("ClickableViewAccessibility")
     @Override
     public boolean onTouchEvent(MotionEvent event) {
         if (event.getAction() == MotionEvent.ACTION_UP) {
-            if (enableClearBtn || enableSeePassword) {
-                //只判断水平上是否有在范围内
-                boolean isClearBtnTouch = getWidth() - (mBtnSize * 2 + 2 * mBtnPadding) < event.getX()
-                        && getWidth() - (mBtnSize + 2 * mBtnPadding) > event.getX();
-                boolean isSeePwBtnTouch = getWidth() - mBtnSize - mBtnPadding < event.getX()
-                        && getWidth() - mBtnPadding > event.getX();
-                if (isClearBtnTouch && enableClearBtn) {
+            if (enableClearBtn || enablePwVisibleBtn) {
+                int visibleBtnRight = getWidth() - mBtnPadding - mEditPaddingRight;
+                int clearBtnRight = visibleBtnRight;
+                if (enablePwVisibleBtn)
+                    clearBtnRight -= mBtnSize + mBtnPadding;
+                boolean isClearBtnTouch = clearBtnRight > event.getX()
+                        && clearBtnRight - mBtnSize < event.getX()
+                        && getLabelSpace() + mEditPaddingTop < event.getY();
+                boolean isPwVisibleBtnTouch = visibleBtnRight > event.getX()
+                        && visibleBtnRight - mBtnSize < event.getX()
+                        && getLabelSpace() + mEditPaddingTop < event.getY();
+
+                if (enableClearBtn && isClearBtnTouch) {
                     setText("");
-                } else if (isSeePwBtnTouch && enableSeePassword) {
-                    if (isPwVisible) {
-                        setInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_VARIATION_PASSWORD);
-                        setSelection(getText().length());
-                    } else {
-                        setInputType(InputType.TYPE_TEXT_VARIATION_VISIBLE_PASSWORD);
-                        setSelection(getText().length());
-                    }
-                    setPwVisible(isPwVisible);
-                    return true;
+                    //do not return true,otherwise can't getDrawableState().
+                } else if (enablePwVisibleBtn && isPwVisibleBtnTouch) {
+                    isPasswordInputType = !isPasswordInputType;
+                    transformPasswordMode(isPasswordInputType);
                 }
-
             }
-
-
         }
         return super.onTouchEvent(event);
     }
 
     private void setClearBtnVisible(boolean visible) {
-        mShowAnimator.end();
-        mHideAnimator.end();
         isClearBtnVisible = visible;
-        clearBtnAnimRunning = true;
         if (visible) {
-            mShowAnimator.start();
-
+            mBtnAnimator.start();   //mBtnFraction 0->1
         } else {
-            mHideAnimator.start();
+            mBtnAnimator.reverse(); //mBtnFraction 1->0
         }
         invalidate();
     }
 
 
-    private void setPwVisible(boolean visible) {
-        mShowAnimator.end();
-        mHideAnimator.end();
-        visibleBtnAnimRunning = true;
-        //isPwVisible = visible;
-        mHideAnimator.start();
+    private void transformPasswordMode(boolean isPwMode) {
+        if (isPwMode) {
+            setTransformationMethod(PasswordTransformationMethod.getInstance());
+        } else {
+            setTransformationMethod(null);
+        }
+        setSelection(getText().length());
+        this.isPasswordInputType = isPwMode;
         invalidate();
     }
 
+    private void setLabelVisible(boolean visible) {
+        isLabelVisible = visible;
+        if (visible) {
+            mLabelAnimator.start();
+        } else {
+            mLabelAnimator.reverse();
+        }
+        invalidate();
+    }
+
+
+    private boolean isPasswordInputType(int inputType) {
+        final int variation =
+                inputType & (InputType.TYPE_MASK_CLASS | InputType.TYPE_MASK_VARIATION);
+        return variation
+                == (InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_VARIATION_PASSWORD)
+                || variation
+                == (InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_VARIATION_WEB_PASSWORD)
+                || variation
+                == (InputType.TYPE_CLASS_NUMBER | InputType.TYPE_NUMBER_VARIATION_PASSWORD);
+    }
+
+
+    @Override
+    public void setPadding(int left, int top, int right, int bottom) {
+        mEditPaddingLeft = left;
+        mEditPaddingTop = top;
+        mEditPaddingRight = right;
+        mEditPaddingBottom = bottom;
+        super.setPadding(mEditPaddingLeft, mEditPaddingTop + getLabelSpace(),
+                mEditPaddingRight + getBtnSpace(), mEditPaddingBottom);
+    }
+
+
+    private int getBtnSpace() {
+        int width = 0;
+        if (enablePwVisibleBtn) {
+            width += mBtnPadding + mBtnSize;
+        }
+        if (enableClearBtn) {
+            width += mBtnPadding + mBtnSize;
+        }
+        if (enablePwVisibleBtn || enableClearBtn)
+            width += mBtnPadding;
+        return width;
+    }
+
+    private int getLabelSpace() {
+        return enableLabel ? mLabelTextSize + mLabelPaddingTop + mLabelPaddingBottom : 0;
+    }
+
+
+    private void log(String s) {
+        if (DEBUG) {
+            Log.d("HardEditText", s);
+        }
+    }
 
 }
